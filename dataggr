@@ -1,0 +1,94 @@
+#!/bin/bash
+
+# set -x
+
+# https://pubs.opengroup.org/onlinepubs/9699919799/utilities/getopts.html
+# https://stackoverflow.com/questions/12022592/how-can-i-use-long-options-with-the-bash-getopts-builtin
+
+for arg in "$@"; do
+  shift
+  case "$arg" in
+    "--table") set -- "$@" "-t" ;;
+    "--help")  set -- "$@" "-h" ;;
+    *)         set -- "$@" "$arg"
+  esac
+done
+
+print_usage() {
+  printf "\n"
+  printf "  Usage: %s: [-h|--help] [-t|--table] table schema\n\n" $0
+  printf "  Example:\n\n"
+  printf "      # \`index\` field is reserved\n"
+  printf "      %s mytable time:INT64,qtr:STRING,sales:FLOAT\n\n" $0
+  printf "      # Do not create a new table, use the table directly\n"
+  printf "      %s -t 20210217230434-mytable time:INT64,qtr:STRING,sales:FLOAT\n\n" $0
+}
+
+tflag=
+
+# Parse short options
+while getopts "ht:" opt; do
+  case "$opt" in
+    t) tflag=1; shift ;;
+    h) print_usage; exit 0 ;;
+    ?) print_usage >&2; exit 1 ;;
+  esac
+done
+
+if [[ $# -ne 2 ]]; then
+  print_usage; exit 1
+fi
+
+table=$1
+schema=$2
+
+table=${table:?}
+schema=${schema:?}
+
+
+schema=index:INT64,$schema
+if [[ -z $tflag ]]; then
+  table=$(date +%Y%m%d%H%M%S)-$table
+fi
+
+echo "Table:  $table"
+echo "Schema: $schema"
+
+if [[ -z $tflag ]]; then
+  bq mk --table $table $schema
+fi
+
+bq show $table
+
+echo "Start collecting data:"
+
+index=0
+num_of_rows=0
+while true; do
+  query_str=""
+
+  # read line timeout 10 secs
+  while read -t 10 line; do
+    # if line is empty
+    if [[ -z $line ]]; then
+      continue
+    fi
+
+    (( index++ ))
+
+    query_str+=",($index,$line)"
+
+    # break every N rows
+    if ! ((index % 100)); then
+      break
+    fi
+  done
+
+  if [[ -n $query_str ]]; then
+    bq query --use_legacy_sql=false "INSERT INTO \`$table\` VALUES ${query_str#*,}"
+  fi
+
+done
+
+# set +x
+
