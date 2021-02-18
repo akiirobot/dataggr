@@ -1,0 +1,16 @@
+--project_id=<your_project_id>
+--dataset_id=<your_dataset_id>
+--location=<your_location>
+
+# format: pretty|sparse|prettyjson|json|csv
+--format=pretty
+
+# debug log
+# --apilog=stdout
+
+[query]
+--use_legacy_sql=false
+# --max_rows=10
+# --maximum_bytes_billed=10000000
+
+

@@ -58,12 +58,24 @@ if [[ -z $tflag ]]; then
   bq mk --table $table $schema
 fi
 
+# bq query 'SELECT * FROM `__TABLES__`'
 bq show $table
+
+info=$(bq show --format=json $table)
+id=$(jq -r '.id' <<< $info)
+num_of_rows=$(jq -r '.numRows' <<< $info)
+
+index_qry=$(bq query --format=json "SELECT IFNULL(MAX(index), 0) AS max FROM \`$table\`")
+index=$(jq -r '.[].max' <<< $index_qry)
+
+echo "info $info"
+echo "id $id"
+echo "num_of_rows $num_of_rows"
+echo "index_qry $index_qry"
+echo "index $index"
 
 echo "Start collecting data:"
 
-index=0
-num_of_rows=0
 while true; do
   query_str=""
 
@@ -75,7 +87,6 @@ while true; do
     fi
 
     (( index++ ))
-
     query_str+=",($index,$line)"
 
     # break every N rows
@@ -86,8 +97,13 @@ while true; do
 
   if [[ -n $query_str ]]; then
     bq query --use_legacy_sql=false "INSERT INTO \`$table\` VALUES ${query_str#*,}"
-  fi
 
+    if [[ $? -ne 0 ]]; then
+      printf "\nError: when insert the data:\n"
+      echo ${query_str#*,}
+      printf "\n\n"
+    fi
+  fi
 done
 
 # set +x
