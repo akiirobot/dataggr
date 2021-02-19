@@ -68,11 +68,15 @@ num_of_rows=$(jq -r '.numRows' <<< $info)
 index_qry=$(bq query --format=json "SELECT IFNULL(MAX(index), 0) AS max FROM \`$table\`")
 index=$(jq -r '.[].max' <<< $index_qry)
 
-echo "info $info"
-echo "id $id"
-echo "num_of_rows $num_of_rows"
-echo "index_qry $index_qry"
-echo "index $index"
+
+print_status() {
+  echo "    Your id:                 $id"
+  echo "    Current max index:       $index"
+  echo "    Collected num of rows:   $num_of_rows"
+  echo ""
+}
+
+print_status
 
 echo "Start collecting data:"
 
@@ -87,6 +91,7 @@ while true; do
     fi
 
     (( index++ ))
+    (( num_of_rows++ ))
     query_str+=",($index,$line)"
 
     # break every N rows
@@ -97,6 +102,7 @@ while true; do
 
   if [[ -n $query_str ]]; then
     bq query --use_legacy_sql=false "INSERT INTO \`$table\` VALUES ${query_str#*,}"
+    print_status
 
     if [[ $? -ne 0 ]]; then
       printf "\nError: when insert the data:\n"
