@@ -101,7 +101,7 @@ while true; do
   done
 
   if [[ -n $query_str ]]; then
-    bq query --use_legacy_sql=false "INSERT INTO \`$table\` VALUES ${query_str#*,}"
+    bq query "INSERT INTO \`$table\` VALUES ${query_str#*,}"
     print_status
 
     if [[ $? -ne 0 ]]; then
