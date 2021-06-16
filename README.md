@@ -53,7 +53,21 @@ gcloud auth list
 
 ## Usage
 
+Create a log file
+
 ```shell
-tail -f -n 0 tmp.log | dataggr test
+touch tmp.log
+```
+
+Pipe **tmp.log** file with no buffering into the **bq.sh**. We set the table name as **my_table** and bigquery schema as a index following three integer time value.
+
+```shell
+stdbuf -oL -eL tail -f -n 0 tmp.log | dataggr my_table index:INT64,time1:INT64,time2:INT64,time3:INT64
+```
+
+Open another terminal and add some testcase to **tmp.log**.
+
+```shell
+for i in {1..10}; do echo "$i $(date +%s%N) $(date +%s%N) $(date +%s%N)" >> tmp.log; done
 ```
 
